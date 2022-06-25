@@ -8,7 +8,6 @@ from pymongo import MongoClient
 from dateutil import parser as dateparser
 
 import config
-from orders import MAX_THREADS
 
 
 wcapi = API(
@@ -28,14 +27,14 @@ max_customer_per_page = 100
 
 def import_all_customers(sort, from_date, to_date):
     """
-    Import all customers having specific role
+    Import all customers having seller role
 
     params:
-    sort: str - Sort orders ascending or descending.
-    from_date: str - import orders submitted starting from this date
-    to_date: str - import orders submitted untill this date
+    sort: str - Sort customers ascending or descending.
+    from_date: str - import customers created starting from this date
+    to_date: str - import customers created untill this date
 
-    returns: list of customers
+    returns: list of customers have seller role
     """
     page = 1
     initial_customers = wcapi.get(
