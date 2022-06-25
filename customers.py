@@ -8,6 +8,7 @@ from pymongo import MongoClient
 from dateutil import parser as dateparser
 
 import config
+from orders import MAX_THREADS
 
 
 wcapi = API(
@@ -21,7 +22,8 @@ wcapi = API(
 client = MongoClient(config.MONGO_URI)
 db = client.test
 
-max_customer_per_page = 2
+MAX_THREADS = 10
+max_customer_per_page = 100
 
 
 def import_all_customers(sort, from_date, to_date):
@@ -49,10 +51,9 @@ def import_all_customers(sort, from_date, to_date):
     pages = range(1, int(total_pages) + 1)
 
     # use multi-threading to pull multiple customers concurrently
-    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_THREADS) as executor:
         future_to_customer = {
-            executor.submit(get_customers, page, sort, from_date, to_date): page
-            for page in pages[:10]
+            executor.submit(get_customers, page, sort): page for page in pages
         }
         for future in tqdm(
             concurrent.futures.as_completed(future_to_customer),
@@ -67,7 +68,7 @@ def import_all_customers(sort, from_date, to_date):
                 process_customers(customers, from_date, to_date)
 
 
-def get_customers(page, sort, from_date, to_date):
+def get_customers(page, sort):
     """Get customers on a specific page."""
     try:
         response = wcapi.get(
@@ -75,6 +76,7 @@ def get_customers(page, sort, from_date, to_date):
             params={
                 "per_page": max_customer_per_page,
                 "page": page,
+                "order": sort,
                 "role": "seller",
             },
         )

@@ -22,7 +22,8 @@ wcapi = API(
 client = MongoClient(config.MONGO_URI)
 db = client.test
 
-max_order_per_page = 25
+MAX_THREADS = 10
+max_order_per_page = 100
 
 
 def import_all_orders(sort, from_date, to_date):
@@ -55,7 +56,7 @@ def import_all_orders(sort, from_date, to_date):
     pages = range(1, int(total_pages) + 1)
 
     # use multi-threading to pull multiple orders concurrently
-    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_THREADS) as executor:
         future_to_order = {
             executor.submit(get_orders, page, sort, after, before): page
             for page in pages
