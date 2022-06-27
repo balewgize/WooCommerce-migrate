@@ -4,6 +4,7 @@ Python script that pushes orders and customers from WooCommerce to MongoDB datab
 import customers, orders
 
 
+
 def show_menu():
     """Display intial CLI menu."""
     print("\nImport:\n\t1. Orders\n\t2. Customers")

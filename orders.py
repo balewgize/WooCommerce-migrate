@@ -2,27 +2,15 @@
 Moudle to import all orders or specific order from WooCommerce
 """
 import concurrent.futures
-from woocommerce import API
 from datetime import datetime
-from pymongo import MongoClient
 from tqdm import tqdm
 from dateutil import parser as dateparser
 
-import config
+from config import DB, APP
 
+from connections import wcapi, db
 
-wcapi = API(
-    url=config.STORE_URL,
-    consumer_key=config.CONSUMER_KEY,
-    consumer_secret=config.CONSUMER_SECRET,
-    version="wc/v3",
-    timeout=120,
-)
-
-client = MongoClient(config.MONGO_URI)
-db = client.test
-
-MAX_THREADS = 10
+MAX_THREADS = APP.MAX_THREADS
 max_order_per_page = 100
 
 
@@ -62,9 +50,9 @@ def import_all_orders(sort, from_date, to_date):
             for page in pages
         }
         for future in tqdm(
-            concurrent.futures.as_completed(future_to_order),
-            total=int(total_pages),
-            unit="page",
+                concurrent.futures.as_completed(future_to_order),
+                total=int(total_pages),
+                unit="page",
         ):
             try:
                 orders = future.result()
@@ -125,7 +113,7 @@ def process_orders(orders):
                 continue
             order[field] = dateparser.isoparse(str_date)
 
-        db[config.ORDER_COLLECTION].find_one_and_replace(
+        db[DB.ORDER_COLLECTION].find_one_and_replace(
             filter={"id": order.get("id")}, replacement=order, upsert=True
         )
 
@@ -155,6 +143,6 @@ def get_order(id):
             continue
         order[field] = dateparser.isoparse(str_date)
 
-    db[config.CUSTOMER_COLLECTION].find_one_and_replace(
+    db[DB.CUSTOMER_COLLECTION].find_one_and_replace(
         filter={"id": order.get("id")}, replacement=order, upsert=True
     )

@@ -2,26 +2,12 @@
 Module to import all customers or specific customer from WooCommerce
 """
 import concurrent.futures
-from woocommerce import API
 from tqdm import tqdm
-from pymongo import MongoClient
 from dateutil import parser as dateparser
+from config import APP,DB
+from connections import wcapi, db
 
-import config
-
-
-wcapi = API(
-    url=config.STORE_URL,
-    consumer_key=config.CONSUMER_KEY,
-    consumer_secret=config.CONSUMER_SECRET,
-    version="wc/v3",
-    timeout=120,
-)
-
-client = MongoClient(config.MONGO_URI)
-db = client.test
-
-MAX_THREADS = 10
+MAX_THREADS = APP.MAX_THREADS
 max_customer_per_page = 100
 
 
@@ -114,7 +100,7 @@ def process_customers(customers, from_date, to_date):
                     continue
                 customer[field] = dateparser.isoparse(str_date)
 
-            db[config.CUSTOMER_COLLECTION].find_one_and_replace(
+            db[DB.CUSTOMER_COLLECTION].find_one_and_replace(
                 filter={"id": customer.get("id")}, replacement=customer, upsert=True
             )
 
@@ -140,6 +126,6 @@ def get_customer(id):
             continue
         customer[field] = dateparser.isoparse(str_date)
 
-    db[config.CUSTOMER_COLLECTION].find_one_and_replace(
+    db[DB.CUSTOMER_COLLECTION].find_one_and_replace(
         filter={"id": customer.get("id")}, replacement=customer, upsert=True
     )
