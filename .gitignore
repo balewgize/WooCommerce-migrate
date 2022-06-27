@@ -211,6 +211,5 @@ cython_debug/
 #.idea/
 
 migration_old.py
-config.py
 create.py
 mongo.py
