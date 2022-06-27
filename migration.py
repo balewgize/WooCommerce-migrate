@@ -34,8 +34,8 @@ def cli():
     "--days",
     "-d",
     type=click.INT,
-    help="Import orders created in the past X days (default=1)",
-    default=1,
+    help="Import orders created in the past X days (default=0 today)",
+    default=0,
 )
 def import_orders(id, sort, after, before, days):
     """
@@ -62,18 +62,19 @@ def import_orders(id, sort, after, before, days):
     else:
         current_time = datetime.datetime.now().strftime("%H:%M:%S")
         today = datetime.date.today()
-        if days != 1:
+        if days != 0:
             # user has provided days argument
             start_day = datetime.date(
                 year=today.year, month=today.month, day=today.day - days
             )
         else:
-            # default to last 24 hr (days=1)
-            start_day = datetime.date(
-                year=today.year, month=today.month, day=today.day - 1
-            )
+            # default is today
+            start_day = today
 
-        after = f"{str(start_day)}T{current_time}.000"
+        if start_day != today:
+            after = f"{str(start_day)}T{current_time}.000"
+        else:
+            after = f"{str(start_day)}T00:00:00.000"
         before = f"{str(today)}T{current_time}.000"
         print(
             f"Importing all orders created after '{after}' and before '{before}' sorted '{sort}'...\n"
@@ -100,8 +101,8 @@ def import_orders(id, sort, after, before, days):
     "--days",
     "-d",
     type=click.INT,
-    help="Import customers created in the past X days (default=1)",
-    default=1,
+    help="Import customers created in the past X days (default=0 today)",
+    default=0,
 )
 def import_customers(id, sort, after, before, days):
     """
@@ -128,18 +129,19 @@ def import_customers(id, sort, after, before, days):
     else:
         current_time = datetime.datetime.now().strftime("%H:%M:%S")
         today = datetime.date.today()
-        if days != 1:
+        if days != 0:
             # user has provided days argument
             start_day = datetime.date(
                 year=today.year, month=today.month, day=today.day - days
             )
         else:
-            # default to last 24 hr (days=1)
-            start_day = datetime.date(
-                year=today.year, month=today.month, day=today.day - 1
-            )
+            # default is today
+            start_day = today
 
-        after = f"{str(start_day)}T{current_time}.000"
+        if start_day != today:
+            after = f"{str(start_day)}T{current_time}.000"
+        else:
+            after = f"{str(start_day)}T00:00:00.000"
         before = f"{str(today)}T{current_time}.000"
         print(
             f"Importing all customers created after '{after}' and before '{before}' sorted '{sort}'...\n"
