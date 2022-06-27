@@ -14,3 +14,18 @@ https://woocommerce.github.io/woocommerce-rest-api-docs/
 - Import records between specific dates
 - Show progress of the process using tqdm library
 - Import specific order ID or customer ID
+
+
+## How to use
+
+```
+python migration.py --help
+```
+
+```
+python migration.py orders --help
+```
+
+```
+python migration.py customers --help
+```
