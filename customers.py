@@ -4,7 +4,7 @@ Module to import all customers or specific customer from WooCommerce
 import concurrent.futures
 from tqdm import tqdm
 from dateutil import parser as dateparser
-from config import APP,DB
+from config import APP, DB
 from connections import wcapi, db
 
 MAX_THREADS = APP.MAX_THREADS

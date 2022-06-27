@@ -5,9 +5,7 @@ import concurrent.futures
 from datetime import datetime
 from tqdm import tqdm
 from dateutil import parser as dateparser
-
 from config import DB, APP
-
 from connections import wcapi, db
 
 MAX_THREADS = APP.MAX_THREADS
@@ -50,9 +48,9 @@ def import_all_orders(sort, from_date, to_date):
             for page in pages
         }
         for future in tqdm(
-                concurrent.futures.as_completed(future_to_order),
-                total=int(total_pages),
-                unit="page",
+            concurrent.futures.as_completed(future_to_order),
+            total=int(total_pages),
+            unit="page",
         ):
             try:
                 orders = future.result()
