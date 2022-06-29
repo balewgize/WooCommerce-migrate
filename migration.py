@@ -62,11 +62,9 @@ def import_orders(id, sort, after, before, days):
     else:
         current_time = datetime.datetime.now().strftime("%H:%M:%S")
         today = datetime.date.today()
-        if days != 0:
+        if days > 0:
             # user has provided days argument
-            start_day = datetime.date(
-                year=today.year, month=today.month, day=today.day - days
-            )
+            start_day = today - datetime.timedelta(days=days)
         else:
             # default is today
             start_day = today
@@ -129,11 +127,9 @@ def import_customers(id, sort, after, before, days):
     else:
         current_time = datetime.datetime.now().strftime("%H:%M:%S")
         today = datetime.date.today()
-        if days != 0:
+        if days > 0:
             # user has provided days argument
-            start_day = datetime.date(
-                year=today.year, month=today.month, day=today.day - days
-            )
+            start_day = today - datetime.timedelta(days=days)
         else:
             # default is today
             start_day = today
