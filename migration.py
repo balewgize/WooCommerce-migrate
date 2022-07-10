@@ -44,7 +44,13 @@ def cli():
     help="Import orders created in the past X hours (default=1 hour)",
     default=1,
 )
-def import_orders(id, sort, after, before, days, hours):
+@click.option(
+    "--sync",
+    type=click.BOOL,
+    help="Sync records (insert ones that are not in the Database). Values: True/False",
+    default=False,
+)
+def import_orders(id, sort, after, before, days, hours, sync):
     """
     Import all orders created between a datetime range or specific order
     """
@@ -92,7 +98,10 @@ def import_orders(id, sort, after, before, days, hours):
         print(
             f"Importing all orders created after '{after}' and before '{before}' sorted '{sort}'...\n"
         )
-        orders.import_all_orders(sort, after, before)
+        if sync == True:
+            orders.import_all_orders(sort, after, before, sync=True)
+        else:
+            orders.import_all_orders(sort, after, before, sync=False)
 
 
 @click.command("customers")
@@ -124,7 +133,13 @@ def import_orders(id, sort, after, before, days, hours):
     help="Import customers created in the past X hours (default=1 hour)",
     default=1,
 )
-def import_customers(id, sort, after, before, days, hours):
+@click.option(
+    "--sync",
+    type=click.BOOL,
+    help="Sync records (insert ones that are not in the Database). Values: True/False",
+    default=False,
+)
+def import_customers(id, sort, after, before, days, hours, sync):
     """
     Import all customers created between a datetime range or specific customer
     """
@@ -157,7 +172,7 @@ def import_customers(id, sort, after, before, days, hours):
             start_day = today
 
         if start_day != today:
-            after = f"{str(start_day)}T{current_time}.000"
+            after = f'{str(start_day)}T{current_time.strftime("%H:%M:%S")}.000'
         else:
             if hours > 1:
                 # hours argument provided
@@ -172,7 +187,10 @@ def import_customers(id, sort, after, before, days, hours):
         print(
             f"Importing all customers created after '{after}' and before '{before}' sorted '{sort}'...\n"
         )
-        customers.import_all_customers(sort, after, before)
+        if sync == True:
+            customers.import_all_customers(sort, after, before, sync=True)
+        else:
+            customers.import_all_customers(sort, after, before, sync=False)
 
 
 cli.add_command(import_orders)

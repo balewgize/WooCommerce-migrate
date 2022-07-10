@@ -11,8 +11,22 @@ from connections import wcapi, db
 MAX_THREADS = APP.MAX_THREADS
 max_order_per_page = 100
 
+# list of orders ids that are in the database currently
+orders_in_db = []
 
-def import_all_orders(sort, from_date, to_date):
+
+def get_orders_in_db(from_date, to_date):
+    """Get all orders in the range given that are in the database."""
+    # Mongo friendly datetime
+    from_date = dateparser.isoparse(from_date)
+    to_date = dateparser.isoparse(to_date)
+    results = db[DB.ORDER_COLLECTION].find(
+        {"date_created": {"$gte": from_date, "$lte": to_date}},
+    )
+    return results
+
+
+def import_all_orders(sort, from_date, to_date, sync=False):
     """
     Import all orders between from_date and to_date
 
@@ -23,6 +37,14 @@ def import_all_orders(sort, from_date, to_date):
 
     returns: list of orders
     """
+    if sync == True:
+        # get all orders that are in the database first
+        results = get_orders_in_db(from_date, to_date)
+        for order in results:
+            orders_in_db.append(order.get("id"))
+
+    print("Orders found in DB: ", len(orders_in_db))
+
     after = datetime.fromisoformat(from_date)
     before = datetime.fromisoformat(to_date)
 
@@ -111,9 +133,13 @@ def process_orders(orders):
                 continue
             order[field] = dateparser.isoparse(str_date)
 
-        db[DB.ORDER_COLLECTION].find_one_and_replace(
-            filter={"id": order.get("id")}, replacement=order, upsert=True
-        )
+        order_id = order.get("id")
+        if order_id not in orders_in_db:
+            db[DB.ORDER_COLLECTION].find_one_and_replace(
+                filter={"id": order_id}, replacement=order, upsert=True
+            )
+        else:
+            print(f"Order id: {order_id} found in DB (skipping)")
 
 
 def get_order(id):
@@ -141,6 +167,6 @@ def get_order(id):
             continue
         order[field] = dateparser.isoparse(str_date)
 
-    db[DB.CUSTOMER_COLLECTION].find_one_and_replace(
+    db[DB.ORDER_COLLECTION].find_one_and_replace(
         filter={"id": order.get("id")}, replacement=order, upsert=True
     )

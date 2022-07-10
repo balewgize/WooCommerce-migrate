@@ -10,8 +10,22 @@ from connections import wcapi, db
 MAX_THREADS = APP.MAX_THREADS
 max_customer_per_page = 100
 
+# list of customer ids that are in the database currently
+customers_in_db = []
 
-def import_all_customers(sort, from_date, to_date):
+
+def get_customers_in_db(from_date, to_date):
+    """Get all customers in the range given that are in the database."""
+    # Mongo friendly datetime
+    from_date = dateparser.isoparse(from_date)
+    to_date = dateparser.isoparse(to_date)
+    results = db[DB.CUSTOMER_COLLECTION].find(
+        {"date_created": {"$gte": from_date, "$lte": to_date}},
+    )
+    return results
+
+
+def import_all_customers(sort, from_date, to_date, sync=False):
     """
     Import all customers having seller role
 
@@ -22,6 +36,14 @@ def import_all_customers(sort, from_date, to_date):
 
     returns: list of customers have seller role
     """
+    if sync == True:
+        # get all customers that are in the database first
+        results = get_customers_in_db(from_date, to_date)
+        for order in results:
+            customers_in_db.append(order.get("id"))
+
+    print("Customers found in DB: ", len(customers_in_db))
+
     page = 1
     initial_customers = wcapi.get(
         "customers",
@@ -31,6 +53,7 @@ def import_all_customers(sort, from_date, to_date):
             "role": "seller",
         },
     )
+
     total_pages = initial_customers.headers.get("X-WP-TotalPages", 0)
     print(f"Total pages: {total_pages}\n")
     pages = range(1, int(total_pages) + 1)
@@ -100,9 +123,13 @@ def process_customers(customers, from_date, to_date):
                     continue
                 customer[field] = dateparser.isoparse(str_date)
 
-            db[DB.CUSTOMER_COLLECTION].find_one_and_replace(
-                filter={"id": customer.get("id")}, replacement=customer, upsert=True
-            )
+            customer_id = customer.get("id")
+            if customer_id not in customers_in_db:
+                db[DB.CUSTOMER_COLLECTION].find_one_and_replace(
+                    filter={"id": customer_id}, replacement=customer, upsert=True
+                )
+            else:
+                print(f"Customer id: {customer_id} found in db (skipping)")
 
 
 def get_customer(id):
