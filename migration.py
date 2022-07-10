@@ -37,7 +37,14 @@ def cli():
     help="Import orders created in the past X days (default=0 today)",
     default=0,
 )
-def import_orders(id, sort, after, before, days):
+@click.option(
+    "--hours",
+    "-h",
+    type=click.INT,
+    help="Import orders created in the past X hours (default=1 hour)",
+    default=1,
+)
+def import_orders(id, sort, after, before, days, hours):
     """
     Import all orders created between a datetime range or specific order
     """
@@ -60,7 +67,7 @@ def import_orders(id, sort, after, before, days):
         )
         orders.import_all_orders(sort, after, before)
     else:
-        current_time = datetime.datetime.now().strftime("%H:%M:%S")
+        current_time = datetime.datetime.now()
         today = datetime.date.today()
         if days > 0:
             # user has provided days argument
@@ -70,10 +77,18 @@ def import_orders(id, sort, after, before, days):
             start_day = today
 
         if start_day != today:
-            after = f"{str(start_day)}T{current_time}.000"
+            after = f'{str(start_day)}T{current_time.strftime("%H:%M:%S")}.000'
         else:
-            after = f"{str(start_day)}T00:00:00.000"
-        before = f"{str(today)}T{current_time}.000"
+            if hours > 1:
+                # hours argument provided
+                start_time = current_time - datetime.timedelta(seconds=hours * 3600)
+            else:
+                # last 1 hour
+                start_time = current_time - datetime.timedelta(seconds=3600)
+
+            after = f'{start_time.strftime("%Y-%m-%dT%H:%M:%S")}.000'
+
+        before = f'{current_time.strftime("%Y-%m-%dT%H:%M:%S")}.000'
         print(
             f"Importing all orders created after '{after}' and before '{before}' sorted '{sort}'...\n"
         )
@@ -102,7 +117,14 @@ def import_orders(id, sort, after, before, days):
     help="Import customers created in the past X days (default=0 today)",
     default=0,
 )
-def import_customers(id, sort, after, before, days):
+@click.option(
+    "--hours",
+    "-h",
+    type=click.INT,
+    help="Import customers created in the past X hours (default=1 hour)",
+    default=1,
+)
+def import_customers(id, sort, after, before, days, hours):
     """
     Import all customers created between a datetime range or specific customer
     """
@@ -125,7 +147,7 @@ def import_customers(id, sort, after, before, days):
         )
         customers.import_all_customers(sort, after, before)
     else:
-        current_time = datetime.datetime.now().strftime("%H:%M:%S")
+        current_time = datetime.datetime.now()
         today = datetime.date.today()
         if days > 0:
             # user has provided days argument
@@ -137,8 +159,16 @@ def import_customers(id, sort, after, before, days):
         if start_day != today:
             after = f"{str(start_day)}T{current_time}.000"
         else:
-            after = f"{str(start_day)}T00:00:00.000"
-        before = f"{str(today)}T{current_time}.000"
+            if hours > 1:
+                # hours argument provided
+                start_time = current_time - datetime.timedelta(seconds=hours * 3600)
+            else:
+                # last 1 hour
+                start_time = current_time - datetime.timedelta(seconds=3600)
+
+            after = f'{start_time.strftime("%Y-%m-%dT%H:%M:%S")}.000'
+
+        before = f'{current_time.strftime("%Y-%m-%dT%H:%M:%S")}.000'
         print(
             f"Importing all customers created after '{after}' and before '{before}' sorted '{sort}'...\n"
         )
