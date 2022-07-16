@@ -26,7 +26,7 @@ def cli():
     "--sort",
     "-s",
     help="Order sort attribute ascending (asc) or descending (desc).",
-    default="asc",
+    default="desc",
 )
 @click.option("--after", "-a", help="ISO datetime to import orders after (FROM)")
 @click.option("--before", "-b", help="ISO datetime to import orders before (TO)")
@@ -46,8 +46,8 @@ def cli():
 )
 @click.option(
     "--sync",
-    type=click.BOOL,
-    help="Sync records (insert ones that are not in the Database). Values: True/False",
+    is_flag=True,
+    help="Sync records (insert ones that are not in the Database)",
     default=False,
 )
 def import_orders(id, sort, after, before, days, hours, sync):
@@ -62,10 +62,8 @@ def import_orders(id, sort, after, before, days, hours, sync):
     if sort:
         if sort.startswith("asc"):
             sort = "asc"
-        elif sort.startswith("desc"):
-            sort = "desc"
         else:
-            sort = "asc"
+            sort = "desc"
 
     if after and before:
         print(
@@ -98,7 +96,7 @@ def import_orders(id, sort, after, before, days, hours, sync):
         print(
             f"Importing all orders created after '{after}' and before '{before}' sorted '{sort}'...\n"
         )
-        if sync == True:
+        if sync:
             orders.import_all_orders(sort, after, before, sync=True)
         else:
             orders.import_all_orders(sort, after, before, sync=False)
@@ -115,7 +113,7 @@ def import_orders(id, sort, after, before, days, hours, sync):
     "--sort",
     "-s",
     help="Customer sort attribute ascending (asc) or descending (desc).",
-    default="asc",
+    default="desc",
 )
 @click.option("--after", "-a", help="ISO datetime to import customers after (FROM)")
 @click.option("--before", "-b", help="ISO datetime to import customers before (TO)")
@@ -135,8 +133,8 @@ def import_orders(id, sort, after, before, days, hours, sync):
 )
 @click.option(
     "--sync",
-    type=click.BOOL,
-    help="Sync records (insert ones that are not in the Database). Values: True/False",
+    is_flag=True,
+    help="Sync records (insert ones that are not in the Database)",
     default=False,
 )
 def import_customers(id, sort, after, before, days, hours, sync):
@@ -151,10 +149,8 @@ def import_customers(id, sort, after, before, days, hours, sync):
     if sort:
         if sort.startswith("asc"):
             sort = "asc"
-        elif sort.startswith("desc"):
-            sort = "desc"
         else:
-            sort = "asc"
+            sort = "desc"
 
     if after and before:
         print(

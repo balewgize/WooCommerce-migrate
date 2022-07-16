@@ -13,6 +13,9 @@ max_customer_per_page = 100
 # list of customer ids that are in the database currently
 customers_in_db = []
 
+num_of_written_records = 0
+num_of_skipped_records = 0
+
 
 def get_customers_in_db(from_date, to_date):
     """Get all customers in the range given that are in the database."""
@@ -36,6 +39,8 @@ def import_all_customers(sort, from_date, to_date, sync=False):
 
     returns: list of customers have seller role
     """
+    global num_of_skipped_records, num_of_written_records
+
     if sync == True:
         # get all customers that are in the database first
         results = get_customers_in_db(from_date, to_date)
@@ -75,6 +80,10 @@ def import_all_customers(sort, from_date, to_date, sync=False):
             else:
                 process_customers(customers, from_date, to_date)
 
+    print(f'\n\n{"-" * 50}')
+    print(f"Newly inserted records: {num_of_written_records}")
+    print(f"Skipped records: {num_of_skipped_records}\n")
+
 
 def get_customers(page, sort):
     """Get customers on a specific page."""
@@ -103,6 +112,8 @@ def process_customers(customers, from_date, to_date):
     Process customer to convert date and times to datetime objects
     and import customers created between the specified date
     """
+    global num_of_skipped_records, num_of_written_records
+
     for customer in customers:
         if not customer.get("id", None):
             print("No customer id skipping")
@@ -128,8 +139,10 @@ def process_customers(customers, from_date, to_date):
                 db[DB.CUSTOMER_COLLECTION].find_one_and_replace(
                     filter={"id": customer_id}, replacement=customer, upsert=True
                 )
+                num_of_written_records += 1
             else:
-                print(f"Customer id: {customer_id} found in db (skipping)")
+                # print(f"Customer id: {customer_id} found in db (skipping)")
+                num_of_skipped_records += 1
 
 
 def get_customer(id):

@@ -14,6 +14,9 @@ max_order_per_page = 100
 # list of orders ids that are in the database currently
 orders_in_db = []
 
+num_of_written_records = 0
+num_of_skipped_records = 0
+
 
 def get_orders_in_db(from_date, to_date):
     """Get all orders in the range given that are in the database."""
@@ -37,6 +40,8 @@ def import_all_orders(sort, from_date, to_date, sync=False):
 
     returns: list of orders
     """
+    global num_of_skipped_records, num_of_written_records
+
     if sync == True:
         # get all orders that are in the database first
         results = get_orders_in_db(from_date, to_date)
@@ -81,6 +86,10 @@ def import_all_orders(sort, from_date, to_date, sync=False):
             else:
                 process_orders(orders)
 
+    print(f'\n\n{"-" * 50}')
+    print(f"Newly inserted records: {num_of_written_records}")
+    print(f"Skipped records: {num_of_skipped_records}\n")
+
 
 def get_orders(page, sort, after, before):
     """Get orders on a specific page."""
@@ -110,6 +119,8 @@ def process_orders(orders):
     Process order to convert date and times to datetime objects
     and insert to MongoDB database
     """
+    global num_of_skipped_records, num_of_written_records
+
     for order in orders:
         if not order.get("id", None):
             print("No order id skipping")
@@ -138,8 +149,10 @@ def process_orders(orders):
             db[DB.ORDER_COLLECTION].find_one_and_replace(
                 filter={"id": order_id}, replacement=order, upsert=True
             )
+            num_of_written_records += 1
         else:
-            print(f"Order id: {order_id} found in DB (skipping)")
+            # print(f"Order id: {order_id} found in DB (skipping)")
+            num_of_skipped_records += 1
 
 
 def get_order(id):
