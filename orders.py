@@ -1,6 +1,9 @@
 """
 Moudle to import all orders or specific order from WooCommerce
 """
+import json
+import ijson
+from bson.decimal128 import Decimal128
 import concurrent.futures
 from datetime import datetime
 from tqdm import tqdm
@@ -12,7 +15,7 @@ MAX_THREADS = APP.MAX_THREADS
 max_order_per_page = 100
 
 # list of orders ids that are in the database currently
-orders_in_db = []
+orders_in_db = set()
 
 num_of_written_records = 0
 num_of_skipped_records = 0
@@ -46,7 +49,7 @@ def import_all_orders(sort, from_date, to_date, sync=False):
         # get all orders that are in the database first
         results = get_orders_in_db(from_date, to_date)
         for order in results:
-            orders_in_db.append(order.get("id"))
+            orders_in_db.add(order.get("id"))
 
     print("Orders found in DB: ", len(orders_in_db))
 
@@ -80,11 +83,9 @@ def import_all_orders(sort, from_date, to_date, sync=False):
             unit="page",
         ):
             try:
-                orders = future.result()
+                status = future.result()
             except:
                 pass
-            else:
-                process_orders(orders)
 
     print(f'\n\n{"-" * 50}')
     print(f"Newly inserted records: {num_of_written_records}")
@@ -104,55 +105,62 @@ def get_orders(page, sort, after, before):
                 "order": sort,
             },
         )
-        if response.status_code == 200:
-            order_detail = response.json()
-            return order_detail
-        else:
+        if response.status_code != 200:
             print(f"Error status code {response.status_code} for page {page}")
+        else:
+            orders = tuple(response.json())
+            for order in orders:
+                process_order(order)
+
+            orders = None  # clear previous values
+
     except Exception as e:
         print(f"Unexpected Error: {e}")
     return []
 
 
-def process_orders(orders):
+def process_order(order):
     """
     Process order to convert date and times to datetime objects
     and insert to MongoDB database
     """
     global num_of_skipped_records, num_of_written_records
 
-    for order in orders:
-        if not order.get("id", None):
-            print("No order id skipping")
+    if not order.get("id", None):
+        print("No order id skipping")
+        return
+
+    date_fields = [
+        "date_created",
+        "date_created_gmt",
+        "date_modified",
+        "date_modified_gmt",
+        "date_paid",
+        "date_paid_gmt",
+        "date_completed",
+        "date_completed_gmt",
+    ]
+    for field in date_fields:
+        if field not in order:
             continue
+        str_date = order[field]
+        if not str_date:
+            continue
+        order[field] = dateparser.isoparse(str_date)
 
-        date_fields = [
-            "date_created",
-            "date_created_gmt",
-            "date_modified",
-            "date_modified_gmt",
-            "date_paid",
-            "date_paid_gmt",
-            "date_completed",
-            "date_completed_gmt",
-        ]
-        for field in date_fields:
-            if field not in order:
-                continue
-            str_date = order[field]
-            if not str_date:
-                continue
-            order[field] = dateparser.isoparse(str_date)
+    price = order["line_items"][0]["price"]
+    if price:
+        order["line_items"][0]["price"] = Decimal128(str(price))
 
-        order_id = order.get("id")
-        if order_id not in orders_in_db:
-            db[DB.ORDER_COLLECTION].find_one_and_replace(
-                filter={"id": order_id}, replacement=order, upsert=True
-            )
-            num_of_written_records += 1
-        else:
-            # print(f"Order id: {order_id} found in DB (skipping)")
-            num_of_skipped_records += 1
+    order_id = order.get("id")
+    if order_id not in orders_in_db:
+        db[DB.ORDER_COLLECTION].find_one_and_replace(
+            filter={"id": order_id}, replacement=order, upsert=True
+        )
+        num_of_written_records += 1
+    else:
+        # print(f"Order id: {order_id} found in DB (skipping)")
+        num_of_skipped_records += 1
 
 
 def get_order(id):
