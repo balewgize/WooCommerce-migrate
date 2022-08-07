@@ -1,9 +1,6 @@
 """
 Moudle to import all orders or specific order from WooCommerce
 """
-import json
-import ijson
-from bson.decimal128 import Decimal128
 import concurrent.futures
 from datetime import datetime
 from tqdm import tqdm
@@ -112,11 +109,11 @@ def get_orders(page, sort, after, before):
             for order in orders:
                 process_order(order)
 
-            orders = None  # clear previous values
-
+            orders = None  # clear previous values to free up memeory
+            return True
     except Exception as e:
         print(f"Unexpected Error: {e}")
-    return []
+    return False
 
 
 def process_order(order):
@@ -147,10 +144,6 @@ def process_order(order):
         if not str_date:
             continue
         order[field] = dateparser.isoparse(str_date)
-
-    price = order["line_items"][0]["price"]
-    if price:
-        order["line_items"][0]["price"] = Decimal128(str(price))
 
     order_id = order.get("id")
     if order_id not in orders_in_db:

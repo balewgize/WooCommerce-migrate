@@ -11,7 +11,7 @@ MAX_THREADS = APP.MAX_THREADS
 max_customer_per_page = 100
 
 # list of customer ids that are in the database currently
-customers_in_db = []
+customers_in_db = set()
 
 num_of_written_records = 0
 num_of_skipped_records = 0
@@ -45,7 +45,7 @@ def import_all_customers(sort, from_date, to_date, sync=False):
         # get all customers that are in the database first
         results = get_customers_in_db(from_date, to_date)
         for order in results:
-            customers_in_db.append(order.get("id"))
+            customers_in_db.add(order.get("id"))
 
     print("Customers found in DB: ", len(customers_in_db))
 
@@ -66,7 +66,8 @@ def import_all_customers(sort, from_date, to_date, sync=False):
     # use multi-threading to pull multiple customers concurrently
     with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_THREADS) as executor:
         future_to_customer = {
-            executor.submit(get_customers, page, sort): page for page in pages
+            executor.submit(get_customers, page, sort, from_date, to_date): page
+            for page in pages
         }
         for future in tqdm(
             concurrent.futures.as_completed(future_to_customer),
@@ -74,18 +75,16 @@ def import_all_customers(sort, from_date, to_date, sync=False):
             unit="page",
         ):
             try:
-                customers = future.result()
+                status = future.result()
             except:
                 pass
-            else:
-                process_customers(customers, from_date, to_date)
 
     print(f'\n\n{"-" * 50}')
     print(f"Newly inserted records: {num_of_written_records}")
     print(f"Skipped records: {num_of_skipped_records}\n")
 
 
-def get_customers(page, sort):
+def get_customers(page, sort, from_date, to_date):
     """Get customers on a specific page."""
     try:
         response = wcapi.get(
@@ -97,52 +96,55 @@ def get_customers(page, sort):
                 "role": "seller",
             },
         )
-        if response.status_code == 200:
-            customers = response.json()
-            return customers
-        else:
+        if response.status_code != 200:
             print(f"Error status code {response.status_code} for page {page}")
+        else:
+            customers = tuple(response.json())
+            for customer in customers:
+                process_customer(customer, from_date, to_date)
+
+            customers = None  # clear previous values to free up memory
+            return True
     except Exception as e:
         print(f"Unexpected Error: {e}")
-    return []
+    return False
 
 
-def process_customers(customers, from_date, to_date):
+def process_customer(customer, from_date, to_date):
     """
     Process customer to convert date and times to datetime objects
     and import customers created between the specified date
     """
     global num_of_skipped_records, num_of_written_records
 
-    for customer in customers:
-        if not customer.get("id", None):
-            print("No customer id skipping")
-            continue
+    if not customer.get("id", None):
+        print("No customer id skipping")
+        return
 
-        if from_date <= customer["date_created"] <= to_date:
-            date_fields = [
-                "date_created",
-                "date_created_gmt",
-                "date_modified",
-                "date_modified_gmt",
-            ]
-            for field in date_fields:
-                if field not in customer:
-                    continue
-                str_date = customer[field]
-                if not str_date:
-                    continue
-                customer[field] = dateparser.isoparse(str_date)
+    if from_date <= customer["date_created"] <= to_date:
+        date_fields = [
+            "date_created",
+            "date_created_gmt",
+            "date_modified",
+            "date_modified_gmt",
+        ]
+        for field in date_fields:
+            if field not in customer:
+                continue
+            str_date = customer[field]
+            if not str_date:
+                continue
+            customer[field] = dateparser.isoparse(str_date)
 
-            customer_id = customer.get("id")
-            if customer_id not in customers_in_db:
-                db[DB.CUSTOMER_COLLECTION].find_one_and_replace(
-                    filter={"id": customer_id}, replacement=customer, upsert=True
-                )
-                num_of_written_records += 1
-            else:
-                # print(f"Customer id: {customer_id} found in db (skipping)")
-                num_of_skipped_records += 1
+        customer_id = customer.get("id")
+        if customer_id not in customers_in_db:
+            db[DB.CUSTOMER_COLLECTION].find_one_and_replace(
+                filter={"id": customer_id}, replacement=customer, upsert=True
+            )
+            num_of_written_records += 1
+        else:
+            # print(f"Customer id: {customer_id} found in db (skipping)")
+            num_of_skipped_records += 1
 
 
 def get_customer(id):

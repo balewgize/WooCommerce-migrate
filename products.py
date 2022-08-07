@@ -12,7 +12,7 @@ MAX_THREADS = APP.MAX_THREADS
 max_product_per_page = 100
 
 # list of products ids that are in the database currently
-products_in_db = []
+products_in_db = set()
 
 num_of_written_records = 0
 num_of_skipped_records = 0
@@ -46,7 +46,7 @@ def import_all_products(sort, from_date, to_date, sync=False):
         # get all products that are in the database first
         results = get_products_in_db(from_date, to_date)
         for product in results:
-            products_in_db.append(product.get("id"))
+            products_in_db.add(product.get("id"))
 
     print("Products found in DB: ", len(products_in_db))
 
@@ -80,11 +80,9 @@ def import_all_products(sort, from_date, to_date, sync=False):
             unit="page",
         ):
             try:
-                products = future.result()
+                status = future.result()
             except:
                 pass
-            else:
-                process_products(products)
 
     print(f'\n\n{"-" * 50}')
     print(f"Newly inserted records: {num_of_written_records}")
@@ -104,65 +102,68 @@ def get_products(page, sort, after, before):
                 "order": sort,
             },
         )
-        if response.status_code == 200:
-            product_detail = response.json()
-            return product_detail
-        else:
+        if response.status_code != 200:
             print(f"Error status code {response.status_code} for page {page}")
+        else:
+            products = tuple(response.json())
+            for product in products:
+                process_product(product)
+
+            products = None  # clear previous values to free up memeory
+            return True
     except Exception as e:
         print(f"Unexpected Error: {e}")
-    return []
+    return False
 
 
-def process_products(products):
+def process_product(product):
     """
     Process product to convert date and times to datetime objects
     and insert to MongoDB database
     """
     global num_of_skipped_records, num_of_written_records
 
-    for product in products:
-        if not product.get("id", None):
-            print("No product id skipping")
-            continue
+    if not product.get("id", None):
+        print("No product id skipping")
+        return
 
-        date_fields = [
-            "date_created",
-            "date_created_gmt",
-            "date_modified",
-            "date_modified_gmt",
-            "date_on_sale_from",
-            "date_on_sale_from_gmt",
-            "date_on_sale_to",
-            "date_on_sale_to_gmt",
-        ]
-        image_date_fields = date_fields[:4]
-        for field in date_fields:
-            if field not in product:
+    date_fields = [
+        "date_created",
+        "date_created_gmt",
+        "date_modified",
+        "date_modified_gmt",
+        "date_on_sale_from",
+        "date_on_sale_from_gmt",
+        "date_on_sale_to",
+        "date_on_sale_to_gmt",
+    ]
+    image_date_fields = date_fields[:4]
+    for field in date_fields:
+        if field not in product:
+            continue
+        str_date = product[field]
+        if not str_date:
+            continue
+        product[field] = dateparser.isoparse(str_date)
+
+    for field in image_date_fields:
+        for i in range(len(product["images"])):
+            if field not in product["images"][i]:
                 continue
-            str_date = product[field]
+            str_date = product["images"][i][field]
             if not str_date:
                 continue
-            product[field] = dateparser.isoparse(str_date)
+            product["images"][i][field] = dateparser.isoparse(str_date)
 
-        for field in image_date_fields:
-            for i in range(len(product["images"])):
-                if field not in product["images"][i]:
-                    continue
-                str_date = product["images"][i][field]
-                if not str_date:
-                    continue
-                product["images"][i][field] = dateparser.isoparse(str_date)
-
-        product_id = product.get("id")
-        if product_id not in products_in_db:
-            db[DB.PRODUCT_COLLECTION].find_one_and_replace(
-                filter={"id": product_id}, replacement=product, upsert=True
-            )
-            num_of_written_records += 1
-        else:
-            # print(f"Product id: {product_id} found in DB (skipping)")
-            num_of_skipped_records += 1
+    product_id = product.get("id")
+    if product_id not in products_in_db:
+        db[DB.PRODUCT_COLLECTION].find_one_and_replace(
+            filter={"id": product_id}, replacement=product, upsert=True
+        )
+        num_of_written_records += 1
+    else:
+        # print(f"Product id: {product_id} found in DB (skipping)")
+        num_of_skipped_records += 1
 
 
 def get_product(id):
