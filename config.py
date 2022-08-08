@@ -1,7 +1,16 @@
 import os
 from dotenv import load_dotenv
 
-load_dotenv()  # take environment variables from .env.
+dev_path = os.path.join(os.getcwd(), ".env.development")
+prod_path = os.path.join(os.getcwd(), ".env.production")
+
+
+if os.path.exists(dev_path):
+    load_dotenv(dev_path)  # take environment variables from .env.development
+elif os.path.exists(prod_path):
+    load_dotenv(prod_path)  # take environment variables from .env.production
+else:
+    load_dotenv()  # take environment variables from .env
 
 
 class APP:
